@@ -1,0 +1,43 @@
+[package]
+name = "emphasize"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi-to-html = "0.1.0"
+async-std = { version = "1.11.0", features = ["tokio1"] }
+color-backtrace = "0.5.1"
+color-eyre = "0.6.1"
+crossbeam-channel = "0.5.4"
+derivative = "2.2.0"
+eyre = "0.6.8"
+fallible-iterator = "0.2.0"
+html-escape = "0.2.11"
+ignore = { version = "0.4.18", features = ["simd-accel"] }
+liquid = { version = "0.26.0", features = ["liquid-lib"] }
+liquid-core = { version = "0.26.0", features = ["derive"] }
+liquid-derive = "0.26.0"
+log = "0.4.17"
+memmap = "0.7.0"
+notify = "5.0.0-pre.15"
+num_enum = "0.5.7"
+pretty_env_logger = "0.4.0"
+pulldown-cmark = { version = "0.9.1", features = ["serde", "simd"] }
+r2d2 = "0.8.9"
+r2d2_sqlite = "0.20.0"
+rayon = "1.5.2"
+regex = "1.5.5"
+rsass = "0.24.0"
+rusqlite = { version = "0.27.0", features = ["bundled", "functions", "serde_json"] }
+seahash = { version = "4.1.0", features = ["use_std"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
+serde_repr = "0.1.8"
+serde_rusqlite = "0.30.1"
+serde_yaml = "0.8.24"
+thiserror = "1.0.31"
+tide = { path = "../tide", features = ["sse"] }
+tokio = { version = "1.18.2", features = ["full"] }
+tokio-stream = "0.1.8"
