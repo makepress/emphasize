@@ -1,0 +1,82 @@
+version: 2.1
+
+workflows:
+  version: 2
+  branch:
+    jobs:
+      - check:
+          context: [aws]
+      - test:
+          context: [aws]
+      - makepress-orb/release-please-single:
+          context: [lulubot]
+          filters:
+            branches:
+              only:
+                - main
+      - build-and-publish:
+          context: [lulubot]
+          requires:
+            - check
+            - test
+            - makepress-orb/release-please-single
+          filters:
+            branches:
+              only:
+                - main
+          username: LULUBOT_USERNAME
+          password: GITHUB_TOKEN_LULUBOT
+          version: latest
+  release:
+    jobs:
+      - build-and-publish:
+          context: [lulubot]
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          username: LULUBOT_USERNAME
+          password: GITHUB_TOKEN_LULUBOT
+          version: ${CIRCLE_TAG/v/''}
+jobs:
+  check:
+    executor: makepress-orb/rust
+    steps:
+      - checkout
+      - makepress-orb/with-rust:
+          steps:
+            - run: just check
+  test:
+    executor: makepress-orb/rust
+    steps:
+      - checkout
+      - makepress-orb/with-rust:
+          steps:
+            - run: just test
+  build-and-publish:
+    docker:
+      - image: cimg/base:2022.04
+    parameters:
+      version:
+        description: What version to build
+        type: string
+      repo:
+        description: Docker repo name
+        type: string
+        default: ghcr.io/makepress/emphasize
+      username:
+        description: Username for docker registry
+        type: env_var_name
+      password:
+        description: Password for docker registry
+        type: env_var_name
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+          docker build -t << parameters.repo >>:<< parameters.version >> .
+          echo ${<< parameters.password >>} | docker login ghcr.io --username ${<< parameters.username >>} --password-stdin
+          docker push << parameters.repo >>:<< parameters.version >>
+orbs:
+  makepress-orb: makepress/makepress-orb@2.3.0
