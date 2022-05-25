@@ -73,7 +73,7 @@ fn new_input_file(
         path: &item.path,
         contents: item.contents.as_ref().deref(),
         size: item.size,
-        inline: item.inline
+        inline: item.inline,
     })?;
     if item.path.ends_with(".md") {
         log::trace!("Adding page!");
@@ -88,7 +88,8 @@ fn new_input_file(
             tags: &fm.tags,
             content_offset: offset,
             route_path: &to_route_path(&item.path)?,
-            template: &fm.template
+            template: &fm.template,
+            draft: fm.draft,
         })?;
     } else {
         log::trace!("Not a page");
