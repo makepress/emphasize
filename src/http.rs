@@ -225,19 +225,19 @@ pub async fn route(req: tide::Request<State>) -> tide::Result<Response> {
     }
 }
 
-struct DisplayWrap(eyre::Report);
+struct DisplayWrap(anyhow::Error);
 
 impl std::fmt::Display for DisplayWrap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let e = self.0.root_cause();
-        self.0.handler().display(e, f)
+        std::fmt::Display::fmt(e, f)
     }
 }
 
 impl std::fmt::Debug for DisplayWrap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let e = self.0.root_cause();
-        self.0.handler().debug(e, f)
+        std::fmt::Debug::fmt(e, f)
     }
 }
 
