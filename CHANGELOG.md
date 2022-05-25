@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://www.github.com/makepress/emphasize/compare/v0.1.0...v0.2.0) (2022-05-25)
+
+
+### Features
+
+* Add draft option for articles ([82336ee](https://www.github.com/makepress/emphasize/commit/82336ee98b1676627e93a6ea3ac93e35578821a6))
+* Added ability to disable writing to the DB. ([b6d85f6](https://www.github.com/makepress/emphasize/commit/b6d85f6bf72487dd5cf0aa803b8cc98363437a9d))
+
+
+### Bug Fixes
+
+* **docker:** Expose port 8080 ([839df51](https://www.github.com/makepress/emphasize/commit/839df51444e46f28f049dcd9e7c0cbe44b499806))
+
 ## 0.1.0 (2022-05-25)
 
 
