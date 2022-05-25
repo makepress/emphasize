@@ -127,6 +127,10 @@ impl Config {
     pub fn content_dir(&self) -> &Path {
         &self.content_dir
     }
+
+    pub fn operating_mode(&self) -> OperatingMode {
+        self.operating_mode
+    }
 }
 
 impl Default for Config {
@@ -141,7 +145,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 pub enum OperatingMode {
     ReadOnly,
     ReadWrite,
