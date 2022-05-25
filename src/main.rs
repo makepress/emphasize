@@ -26,6 +26,7 @@ use std::{
     sync::{mpsc, Arc},
 };
 
+use config::Config;
 use db::{
     input_files::InputFile,
     migrations::MigrateSum,
@@ -34,15 +35,19 @@ use db::{
     revision_routes::RevisionRoute,
     revision_stylesheet::RevisionStylesheet,
 };
+use http::route_with_catch;
+use liquid::Parser;
 use notify::{RecommendedWatcher, Watcher};
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use tide::{sse, Request};
 use tokio::sync::watch;
 
 use crate::{
-    config::ConfigBuilder,
+    config::{ConfigBuilder, OperatingMode},
     db::make_db_pool,
     filters::{FilterSum, Filterable, Markdown, Query},
-    http::{route_with_catch, State},
+    http::State,
     walk::{process_walker_events, process_watch_events, walk_assets},
 };
 
@@ -100,27 +105,43 @@ async fn main() -> Result<()> {
     )
     .build()?;
 
-    let (mut tx, rx) = mpsc::channel();
+    match config.operating_mode() {
+        OperatingMode::ReadOnly => without_watch(config, pool, templater).await,
+        OperatingMode::ReadWrite => with_watch(config, pool, templater).await,
+    }?;
+
+    Ok(())
+}
+
+async fn with_watch(
+    config: Arc<Config>,
+    pool: Pool<SqliteConnectionManager>,
+    templater: Parser,
+) -> Result<()> {
+    let (mut walker_tx, walker_rx) = mpsc::channel();
     let (reload_tx, reload_rx) = watch::channel::<usize>(0);
 
-    walk_assets(&config, tx.clone())?;
+    // Walk the assets on startup, just to update the db prematurely in case of changes when not running.
+    walk_assets(&config, walker_tx.clone())?;
 
     let (sink, source) = mpsc::channel();
     let mut watcher = RecommendedWatcher::new(move |event| {
-        sink.send(event).expect("AAAHH!");
+        sink.send(event)
+            .expect("source for watch event dropped before sender, halp!");
     })?;
-    watcher.watch(
-        Path::new(config.content_dir()),
-        notify::RecursiveMode::Recursive,
-    )?;
+    watcher.watch(config.content_dir(), notify::RecursiveMode::Recursive)?;
 
-    let c1 = config.clone();
-    let p = pool.clone();
-    let walk_task =
-        tokio::task::spawn_blocking(move || process_walker_events(c1, p, rx, reload_tx));
+    let walker_config = config.clone();
+    let watch_config = config.clone();
 
-    let c2 = config.clone();
-    let watch_task = tokio::task::spawn_blocking(move || process_watch_events(c2, source, &mut tx));
+    let walker_pool = pool.clone();
+
+    let walk_task = tokio::task::spawn_blocking(move || {
+        process_walker_events(walker_config, walker_pool, walker_rx, reload_tx)
+    });
+    let watch_task = tokio::task::spawn_blocking(move || {
+        process_watch_events(watch_config, source, &mut walker_tx)
+    });
 
     let mut app = tide::with_state(State {
         db: pool,
@@ -129,20 +150,6 @@ async fn main() -> Result<()> {
         reload_rx,
     });
     app.with(tide::log::LogMiddleware::new());
-    // TODO: Make it so errors in rendering are displayed in the web page.
-    // app.with(After(|res: Response| async move {
-    //     if let Some(e) = res.error() {
-    //         match e.status() {
-    //             //StatusCode::NotFound => return Ok(not_found()),
-    //             status => {
-    //                 let status = status.clone();
-    //                 let e = e.into_inner();
-    //                 return Ok(error(status, e, true));
-    //             }
-    //         }
-    //     }
-    //     Ok(res)
-    // }));
 
     app.at("/sse")
         .get(sse::endpoint(|req: Request<State>, sender| async move {
@@ -156,11 +163,52 @@ async fn main() -> Result<()> {
 
     let app_handle = tokio::spawn(app.listen("0.0.0.0:8080"));
 
-    let r = tokio::try_join!(walk_task, watch_task, app_handle)?;
+    let result = tokio::try_join!(walk_task, watch_task, app_handle)?;
 
-    r.0?;
-    r.1?;
-    r.2?;
+    result.0?;
+    result.1?;
+    result.2?;
+
+    Ok(())
+}
+
+async fn without_watch(
+    config: Arc<Config>,
+    pool: Pool<SqliteConnectionManager>,
+    templater: Parser,
+) -> Result<()> {
+    let (reload_tx, reload_rx) = watch::channel::<usize>(0);
+    let mut counter = 0;
+
+    let commit_hook = move || {
+        reload_tx.send(counter).unwrap();
+        counter += counter;
+        false
+    };
+
+    pool.get()?.commit_hook(Some(commit_hook));
+
+    let mut app = tide::with_state(State {
+        db: pool,
+        templater,
+        config,
+        reload_rx,
+    });
+    app.with(tide::log::LogMiddleware::new());
+
+    app.at("/sse")
+        .get(sse::endpoint(|req: Request<State>, sender| async move {
+            let mut reload_rx = req.state().reload_rx.clone();
+            reload_rx.borrow_and_update();
+            reload_rx.changed().await?;
+            sender.send("reload", "reload", None).await?;
+            Ok(())
+        }));
+    app.at("/*").get(route_with_catch);
+
+    let app_handle = tokio::spawn(app.listen("0.0.0.0:8080"));
+
+    app_handle.await??;
 
     Ok(())
 }

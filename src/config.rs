@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use eyre::eyre;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
@@ -13,6 +14,7 @@ pub struct Config {
     db: PathBuf,
     debug: bool,
     content_dir: PathBuf,
+    operating_mode: OperatingMode,
 }
 
 pub fn none<T>() -> Option<T> {
@@ -29,6 +31,8 @@ pub struct ConfigBuilder {
     debug: Option<bool>,
     #[serde(default = "none")]
     content_dir: Option<PathBuf>,
+    #[serde(default = "none")]
+    operating_mode: Option<OperatingMode>,
 }
 
 impl ConfigBuilder {
@@ -62,11 +66,17 @@ impl ConfigBuilder {
             Err(VarError::NotPresent) => Ok(None),
             Err(e) => Err(e),
         }?;
+        let operating_mode = match env::var("OPERATING_MODE") {
+            Ok(s) => Ok(Some(s.parse()?)),
+            Err(VarError::NotPresent) => Ok(None),
+            Err(e) => Err(e),
+        }?;
         let new = Self {
             cache_dir,
             db,
             debug,
             content_dir,
+            operating_mode,
         };
         Ok(self.or(new))
     }
@@ -84,6 +94,7 @@ impl ConfigBuilder {
             db: other.db.or(self.db),
             debug: other.debug.or(self.debug),
             content_dir: other.content_dir.or(self.content_dir),
+            operating_mode: other.operating_mode.or(self.operating_mode),
         }
     }
 
@@ -95,6 +106,7 @@ impl ConfigBuilder {
             db: self.db.unwrap_or(default_config.db),
             debug: self.debug.unwrap_or(false),
             content_dir: self.content_dir.unwrap_or(default_config.content_dir),
+            operating_mode: self.operating_mode.unwrap_or(default_config.operating_mode),
         }
     }
 }
@@ -115,6 +127,10 @@ impl Config {
     pub fn content_dir(&self) -> &Path {
         &self.content_dir
     }
+
+    pub fn operating_mode(&self) -> OperatingMode {
+        self.operating_mode
+    }
 }
 
 impl Default for Config {
@@ -124,6 +140,34 @@ impl Default for Config {
             db: PathBuf::from_str(".emphasize/content.db").unwrap(),
             debug: false,
             content_dir: PathBuf::from_str("blog").unwrap(),
+            operating_mode: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
+pub enum OperatingMode {
+    ReadOnly,
+    ReadWrite,
+}
+
+impl Default for OperatingMode {
+    fn default() -> Self {
+        OperatingMode::ReadWrite
+    }
+}
+
+impl FromStr for OperatingMode {
+    type Err = eyre::Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Read" => Ok(OperatingMode::ReadOnly),
+            "ReadWrite" => Ok(OperatingMode::ReadWrite),
+            _ => Err(eyre!(format!(
+                "{} is not valid option (Read or ReadWrite)",
+                s
+            ))),
         }
     }
 }
