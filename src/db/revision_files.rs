@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{migrations::Migration, Insertable};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct RevisionFileIn<'a> {
     pub hash: &'a str,
     pub path: &'a str,

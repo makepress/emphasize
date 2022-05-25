@@ -6,7 +6,7 @@ use crate::{db::Insertable, Result};
 
 use super::migrations::Migration;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Page {
     pub hash: String,
     pub path: String,
@@ -36,7 +36,7 @@ impl Page {
     }
 }
 
-#[derive(Serialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Debug, PartialEq, Eq, Clone)]
 pub struct PageIn<'a> {
     pub hash: &'a str,
     pub path: &'a str,
@@ -45,7 +45,7 @@ pub struct PageIn<'a> {
     pub tags: &'a Vec<String>,
     pub content_offset: usize,
     pub route_path: &'a str,
-    pub template: &'a Option<String>
+    pub template: &'a Option<String>,
 }
 
 impl Insertable for Page {
@@ -83,7 +83,7 @@ impl Insertable for Page {
             pub template: &'a Option<String>,
         }
 
-        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
         struct TagIn<'a> {
             hash: &'a str,
             path: &'a str,
