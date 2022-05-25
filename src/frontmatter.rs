@@ -24,6 +24,8 @@ pub struct FrontMatter {
     pub tags: Vec<String>,
     #[serde(default)]
     pub template: Option<String>,
+    #[serde(default)]
+    pub draft: bool,
 }
 
 impl FrontMatter {

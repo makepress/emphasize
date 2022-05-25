@@ -15,6 +15,7 @@ pub struct Page {
     pub content_offset: usize,
     pub template: Option<String>,
     pub route_path: String,
+    pub draft: bool,
 }
 
 impl Page {
@@ -46,13 +47,14 @@ pub struct PageIn<'a> {
     pub content_offset: usize,
     pub route_path: &'a str,
     pub template: &'a Option<String>,
+    pub draft: bool,
 }
 
 impl Insertable for Page {
     type I<'i> = PageIn<'i>;
     fn raw_stmt(db: &rusqlite::Connection) -> Result<rusqlite::Statement> {
         let r =
-            db.prepare("INSERT OR IGNORE INTO pages VALUES (:hash, :path, :title, :date, :tags, :content_offset, :template, :route_path);")?;
+            db.prepare("INSERT OR IGNORE INTO pages VALUES (:hash, :path, :title, :date, :tags, :content_offset, :template, :route_path, :draft);")?;
         Ok(r)
     }
     fn with_insert<F, O>(db: &rusqlite::Connection, mut callback: F) -> Result<O>
@@ -81,6 +83,7 @@ impl Insertable for Page {
             pub content_offset: usize,
             pub route_path: &'a str,
             pub template: &'a Option<String>,
+            pub draft: bool,
         }
 
         #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -106,6 +109,7 @@ impl Insertable for Page {
                 content_offset: input.content_offset,
                 route_path: input.route_path,
                 template: input.template,
+                draft: input.draft,
             };
 
             pages_stmt.execute(to_params_named(&pin)?.to_slice().as_slice())?;
@@ -138,6 +142,7 @@ impl Migration for Page {
             content_offset INT,
             template VARCHAR,
             route_path VARCHAR,
+            draft BOOLEAN,
             PRIMARY KEY(hash, path),
             FOREIGN KEY (hash, path) REFERENCES input_files
         );",
