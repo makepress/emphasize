@@ -15,5 +15,6 @@ RUN cargo build --release --bin emphasize
 FROM debian:buster-slim AS runtime
 WORKDIR app
 COPY --from=builder /app/target/release/emphasize /usr/local/bin
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/emphasize"]
 
